@@ -184,7 +184,7 @@ func (h *Handler) Process(ctx context.Context, link *transport.Link, dialer inte
 
 func NewPacketReader(conn net.Conn) buf.Reader {
 	iConn := conn
-	statConn, ok := iConn.(*internet.StatCouterConnection)
+	statConn, ok := iConn.(*internet.StatCounterConnection)
 	if ok {
 		iConn = statConn.Connection
 	}
@@ -228,7 +228,7 @@ func (r *PacketReader) ReadMultiBuffer() (buf.MultiBuffer, error) {
 
 func NewPacketWriter(conn net.Conn, h *Handler, ctx context.Context) buf.Writer {
 	iConn := conn
-	statConn, ok := iConn.(*internet.StatCouterConnection)
+	statConn, ok := iConn.(*internet.StatCounterConnection)
 	if ok {
 		iConn = statConn.Connection
 	}

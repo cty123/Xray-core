@@ -80,7 +80,7 @@ func (w *tcpWorker) callback(conn internet.Connection) {
 	}
 
 	if w.uplinkCounter != nil || w.downlinkCounter != nil {
-		conn = &internet.StatCouterConnection{
+		conn = &internet.StatCounterConnection{
 			Connection:   conn,
 			ReadCounter:  w.uplinkCounter,
 			WriteCounter: w.downlinkCounter,
@@ -432,7 +432,7 @@ func (w *dsWorker) callback(conn internet.Connection) {
 	ctx = session.ContextWithID(ctx, sid)
 
 	if w.uplinkCounter != nil || w.downlinkCounter != nil {
-		conn = &internet.StatCouterConnection{
+		conn = &internet.StatCounterConnection{
 			Connection:   conn,
 			ReadCounter:  w.uplinkCounter,
 			WriteCounter: w.downlinkCounter,

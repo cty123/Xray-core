@@ -7,7 +7,6 @@ import (
 	"time"
 
 	goxtls "github.com/xtls/go"
-
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/session"
@@ -25,6 +24,8 @@ type Listener struct {
 	config     *Config
 	addConn    internet.ConnHandler
 	locker     *internet.FileLocker // for unix domain socket
+
+	muxEnabled bool
 }
 
 // ListenTCP creates a new Listener based on configurations.
@@ -118,6 +119,23 @@ func (v *Listener) keepAccepting() {
 		if v.authConfig != nil {
 			conn = v.authConfig.Server(conn)
 		}
+
+		//v.muxEnabled = true
+		//if v.muxEnabled {
+		//	smuxSession, err := smux.Server(conn, nil)
+		//	if err != nil {
+		//		newError("failed to establish mux connection").Base(err).WriteToLog()
+		//		continue
+		//	}
+		//
+		//	// Accept a stream
+		//	stream, err := smuxSession.AcceptStream()
+		//	if err != nil {
+		//		newError("failed to establish mux connection").Base(err).WriteToLog()
+		//		continue
+		//	}
+		//	conn = stream
+		//}
 
 		v.addConn(internet.Connection(conn))
 	}

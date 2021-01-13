@@ -5,7 +5,6 @@ import (
 
 	"github.com/xtls/xray-core/app/proxyman"
 	"github.com/xtls/xray-core/common"
-	"github.com/xtls/xray-core/common/mux"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/net/cnc"
 	"github.com/xtls/xray-core/common/session"
@@ -52,7 +51,6 @@ type Handler struct {
 	streamSettings  *internet.MemoryStreamConfig
 	proxy           proxy.Outbound
 	outboundManager outbound.Manager
-	mux             *mux.ClientManager
 	uplinkCounter   stats.Counter
 	downlinkCounter stats.Counter
 }
@@ -101,25 +99,26 @@ func NewHandler(ctx context.Context, config *core.OutboundHandlerConfig) (outbou
 		return nil, newError("not an outbound handler")
 	}
 
-	if h.senderSettings != nil && h.senderSettings.MultiplexSettings != nil {
-		config := h.senderSettings.MultiplexSettings
-		if config.Concurrency < 1 || config.Concurrency > 1024 {
-			return nil, newError("invalid mux concurrency: ", config.Concurrency).AtWarning()
-		}
-		h.mux = &mux.ClientManager{
-			Enabled: h.senderSettings.MultiplexSettings.Enabled,
-			Picker: &mux.IncrementalWorkerPicker{
-				Factory: &mux.DialingWorkerFactory{
-					Proxy:  proxyHandler,
-					Dialer: h,
-					Strategy: mux.ClientStrategy{
-						MaxConcurrency: config.Concurrency,
-						MaxConnection:  128,
-					},
-				},
-			},
-		}
-	}
+	// Replaced with smux
+	//if h.senderSettings != nil && h.senderSettings.MultiplexSettings != nil {
+	//	config := h.senderSettings.MultiplexSettings
+	//	if config.Concurrency < 1 || config.Concurrency > 1024 {
+	//		return nil, newError("invalid mux concurrency: ", config.Concurrency).AtWarning()
+	//	}
+	//	h.mux = &mux.ClientManager{
+	//		Enabled: h.senderSettings.MultiplexSettings.Enabled,
+	//		Picker: &mux.IncrementalWorkerPicker{
+	//			Factory: &mux.DialingWorkerFactory{
+	//				Proxy:  proxyHandler,
+	//				Dialer: h,
+	//				Strategy: mux.ClientStrategy{
+	//					MaxConcurrency: config.Concurrency,
+	//					MaxConnection:  128,
+	//				},
+	//			},
+	//		},
+	//	}
+	//}
 
 	h.proxy = proxyHandler
 	return h, nil
@@ -132,21 +131,14 @@ func (h *Handler) Tag() string {
 
 // Dispatch implements proxy.Outbound.Dispatch.
 func (h *Handler) Dispatch(ctx context.Context, link *transport.Link) {
-	if h.mux != nil && (h.mux.Enabled || session.MuxPreferedFromContext(ctx)) {
-		if err := h.mux.Dispatch(ctx, link); err != nil {
-			newError("failed to process mux outbound traffic").Base(err).WriteToLog(session.ExportIDToError(ctx))
-			common.Interrupt(link.Writer)
-		}
+	if err := h.proxy.Process(ctx, link, h); err != nil {
+		// Ensure outbound ray is properly closed.
+		newError("failed to process outbound traffic").Base(err).WriteToLog(session.ExportIDToError(ctx))
+		common.Interrupt(link.Writer)
 	} else {
-		if err := h.proxy.Process(ctx, link, h); err != nil {
-			// Ensure outbound ray is properly closed.
-			newError("failed to process outbound traffic").Base(err).WriteToLog(session.ExportIDToError(ctx))
-			common.Interrupt(link.Writer)
-		} else {
-			common.Must(common.Close(link.Writer))
-		}
-		common.Interrupt(link.Reader)
+		common.Must(common.Close(link.Writer))
 	}
+	common.Interrupt(link.Reader)
 }
 
 // Address implements internet.Dialer.
@@ -181,7 +173,7 @@ func (h *Handler) Dial(ctx context.Context, dest net.Destination) (internet.Conn
 					conn = tls.Client(conn, tlsConfig)
 				}
 
-				return h.getStatCouterConnection(conn), nil
+				return h.getStatCounterConnection(conn), nil
 			}
 
 			newError("failed to get outbound handler with tag: ", tag).AtWarning().WriteToLog(session.ExportIDToError(ctx))
@@ -198,12 +190,12 @@ func (h *Handler) Dial(ctx context.Context, dest net.Destination) (internet.Conn
 	}
 
 	conn, err := internet.Dial(ctx, dest, h.streamSettings)
-	return h.getStatCouterConnection(conn), err
+	return h.getStatCounterConnection(conn), err
 }
 
-func (h *Handler) getStatCouterConnection(conn internet.Connection) internet.Connection {
+func (h *Handler) getStatCounterConnection(conn internet.Connection) internet.Connection {
 	if h.uplinkCounter != nil || h.downlinkCounter != nil {
-		return &internet.StatCouterConnection{
+		return &internet.StatCounterConnection{
 			Connection:   conn,
 			ReadCounter:  h.downlinkCounter,
 			WriteCounter: h.uplinkCounter,
@@ -224,6 +216,5 @@ func (h *Handler) Start() error {
 
 // Close implements common.Closable.
 func (h *Handler) Close() error {
-	common.Close(h.mux)
 	return nil
 }

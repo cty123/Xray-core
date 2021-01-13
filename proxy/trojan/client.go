@@ -81,7 +81,7 @@ func (c *Client) Process(ctx context.Context, link *transport.Link, dialer inter
 	defer conn.Close()
 
 	iConn := conn
-	statConn, ok := iConn.(*internet.StatCouterConnection)
+	statConn, ok := iConn.(*internet.StatCounterConnection)
 	if ok {
 		iConn = statConn.Connection
 	}

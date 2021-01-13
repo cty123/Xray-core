@@ -10,13 +10,13 @@ type Connection interface {
 	net.Conn
 }
 
-type StatCouterConnection struct {
+type StatCounterConnection struct {
 	Connection
 	ReadCounter  stats.Counter
 	WriteCounter stats.Counter
 }
 
-func (c *StatCouterConnection) Read(b []byte) (int, error) {
+func (c *StatCounterConnection) Read(b []byte) (int, error) {
 	nBytes, err := c.Connection.Read(b)
 	if c.ReadCounter != nil {
 		c.ReadCounter.Add(int64(nBytes))
@@ -25,7 +25,7 @@ func (c *StatCouterConnection) Read(b []byte) (int, error) {
 	return nBytes, err
 }
 
-func (c *StatCouterConnection) Write(b []byte) (int, error) {
+func (c *StatCounterConnection) Write(b []byte) (int, error) {
 	nBytes, err := c.Connection.Write(b)
 	if c.WriteCounter != nil {
 		c.WriteCounter.Add(int64(nBytes))

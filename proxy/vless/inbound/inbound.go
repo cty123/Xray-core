@@ -146,7 +146,7 @@ func (h *Handler) Process(ctx context.Context, network net.Network, connection i
 	sid := session.ExportIDToError(ctx)
 
 	iConn := connection
-	statConn, ok := iConn.(*internet.StatCouterConnection)
+	statConn, ok := iConn.(*internet.StatCounterConnection)
 	if ok {
 		iConn = statConn.Connection
 	}

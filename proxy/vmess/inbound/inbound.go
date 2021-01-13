@@ -221,7 +221,7 @@ func (h *Handler) Process(ctx context.Context, network net.Network, connection i
 	}
 
 	iConn := connection
-	if statConn, ok := iConn.(*internet.StatCouterConnection); ok {
+	if statConn, ok := iConn.(*internet.StatCounterConnection); ok {
 		iConn = statConn.Connection
 	}
 	_, isDrain := iConn.(*net.TCPConn)

@@ -298,7 +298,7 @@ func ReadV(reader buf.Reader, writer buf.Writer, timer signal.ActivityUpdater, c
 				if sctx != nil {
 					if inbound := session.InboundFromContext(sctx); inbound != nil && inbound.Conn != nil {
 						iConn := inbound.Conn
-						statConn, ok := iConn.(*internet.StatCouterConnection)
+						statConn, ok := iConn.(*internet.StatCounterConnection)
 						if ok {
 							iConn = statConn.Connection
 						}
