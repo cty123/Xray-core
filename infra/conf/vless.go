@@ -29,6 +29,7 @@ type VLessInboundConfig struct {
 	Decryption string                  `json:"decryption"`
 	Fallback   json.RawMessage         `json:"fallback"`
 	Fallbacks  []*VLessInboundFallback `json:"fallbacks"`
+	Mux        bool                    `json:"mux"`
 }
 
 // Build implements Buildable
@@ -61,6 +62,7 @@ func (c *VLessInboundConfig) Build() (proto.Message, error) {
 		config.Clients[idx] = user
 	}
 
+	config.Mux = c.Mux
 	if c.Decryption != "none" {
 		return nil, newError(`VLESS settings: please add/set "decryption":"none" to every settings`)
 	}

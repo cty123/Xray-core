@@ -4,6 +4,7 @@ package inbound
 
 import (
 	"context"
+	"github.com/xtaci/smux"
 	"io"
 	"strconv"
 	"syscall"
@@ -65,6 +66,7 @@ type Handler struct {
 	dns                   dns.Client
 	fallbacks             map[string]map[string]*Fallback // or nil
 	// regexps               map[string]*regexp.Regexp       // or nil
+	muxEnabled bool
 }
 
 // New creates a new VLess inbound handler.
@@ -75,6 +77,7 @@ func New(ctx context.Context, config *Config, dc dns.Client) (*Handler, error) {
 		policyManager:         v.GetFeature(policy.ManagerType()).(policy.Manager),
 		validator:             new(vless.Validator),
 		dns:                   dc,
+		muxEnabled:            config.Mux,
 	}
 
 	for _, user := range config.Clients {
@@ -95,15 +98,6 @@ func New(ctx context.Context, config *Config, dc dns.Client) (*Handler, error) {
 				handler.fallbacks[fb.Alpn] = make(map[string]*Fallback)
 			}
 			handler.fallbacks[fb.Alpn][fb.Path] = fb
-			/*
-				if fb.Path != "" {
-					if r, err := regexp.Compile(fb.Path); err != nil {
-						return nil, newError("invalid path regexp").Base(err).AtError()
-					} else {
-						handler.regexps[fb.Path] = r
-					}
-				}
-			*/
 		}
 		if handler.fallbacks[""] != nil {
 			for alpn, pfb := range handler.fallbacks {
@@ -141,8 +135,25 @@ func (*Handler) Network() []net.Network {
 	return []net.Network{net.Network_TCP, net.Network_UNIX}
 }
 
-// Process implements proxy.Inbound.Process().
 func (h *Handler) Process(ctx context.Context, network net.Network, connection internet.Connection, dispatcher routing.Dispatcher) error {
+	// Handle mux connection if mux is enabled
+	if h.muxEnabled {
+		s, err := smux.Server(connection, nil)
+		if err != nil {
+			return newError("failed to establish mux connection with the client").Base(err)
+		}
+		muxConnection, err := s.AcceptStream()
+		if err != nil {
+			return newError("failed to establish mux connection with the client").Base(err)
+		}
+		connection = muxConnection
+	}
+
+	return h.ProcessVless(ctx, network, connection, dispatcher)
+}
+
+// Process implements proxy.Inbound.Process().
+func (h *Handler) ProcessVless(ctx context.Context, network net.Network, connection internet.Connection, dispatcher routing.Dispatcher) error {
 	sid := session.ExportIDToError(ctx)
 
 	iConn := connection

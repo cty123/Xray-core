@@ -22,4 +22,7 @@ message Config {
   // for now.
   string decryption = 2;
   repeated Fallback fallbacks = 3;
+
+  // If mux is enabled for this setting
+  bool mux = 4;
 }
