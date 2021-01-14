@@ -11,12 +11,14 @@ import (
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/common/serial"
+	"github.com/xtls/xray-core/common/uuid"
 	"github.com/xtls/xray-core/proxy/vless"
 	"github.com/xtls/xray-core/proxy/vless/inbound"
 	"github.com/xtls/xray-core/proxy/vless/outbound"
 )
 
 type VLessInboundFallback struct {
+	Name string          `json:"name"`
 	Alpn string          `json:"alpn"`
 	Path string          `json:"path"`
 	Type string          `json:"type"`
@@ -45,6 +47,12 @@ func (c *VLessInboundConfig) Build() (proto.Message, error) {
 		if err := json.Unmarshal(rawUser, account); err != nil {
 			return nil, newError(`VLESS clients: invalid user`).Base(err)
 		}
+
+		u, err := uuid.ParseString(account.Id)
+		if err != nil {
+			return nil, err
+		}
+		account.Id = u.String()
 
 		switch account.Flow {
 		case "", "xtls-rprx-origin", "xtls-rprx-direct":
@@ -80,6 +88,7 @@ func (c *VLessInboundConfig) Build() (proto.Message, error) {
 			_ = json.Unmarshal(fb.Dest, &s)
 		}
 		config.Fallbacks = append(config.Fallbacks, &inbound.Fallback{
+			Name: fb.Name,
 			Alpn: fb.Alpn,
 			Path: fb.Path,
 			Type: fb.Type,
@@ -170,6 +179,12 @@ func (c *VLessOutboundConfig) Build() (proto.Message, error) {
 			if err := json.Unmarshal(rawUser, account); err != nil {
 				return nil, newError(`VLESS users: invalid user`).Base(err)
 			}
+
+			u, err := uuid.ParseString(account.Id)
+			if err != nil {
+				return nil, err
+			}
+			account.Id = u.String()
 
 			switch account.Flow {
 			case "", "xtls-rprx-origin", "xtls-rprx-origin-udp443", "xtls-rprx-direct", "xtls-rprx-direct-udp443":
